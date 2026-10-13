@@ -86,7 +86,7 @@ class Results:
         self._campaign_configuration = campaign_configuration
         self.techniques = campaign_configuration['General']['techniques']
         self.metric = campaign_configuration['General']['metric']
-        self._metrics_calculator = Metrics()
+        self._metrics_calculator = Metrics(task=campaign_configuration['General'].get('task', 'regression'))
         self._comparison_operator = self._metrics_calculator.get_comparison_operator(self.metric)
         self._exp_confs = exp_confs
         self.raw_results: Dict[str, Dict[str, Dict]] = {}
@@ -217,13 +217,13 @@ class Results:
             for run in run_fold_tec_best_conf:
                 for fold in run_fold_tec_best_conf[run]:
                     for tec in run_fold_tec_best_conf[run][fold]:
-                        if self.metric not in run_tec_set[run][technique]:
+                        if self.metric not in run_tec_set[run][tec]:
                             for metric in run_fold_tec_best_conf[run][fold][tec].metrics:
                                 for set_name in set_names:
                                     run_tec_set[run][tec][metric][set_name] = 0
                         for metric, metric_vals in run_fold_tec_best_conf[run][fold][tec].metrics.items():
                             for set_name in set_names:
-                                run_tec_set[run][tec][metric][set_name] = metric_vals[set_name]
+                                run_tec_set[run][tec][metric][set_name] += metric_vals[set_name] / folds
 
             # Print results for each run
             for run in range(0, self._campaign_configuration['General']['run_num']):

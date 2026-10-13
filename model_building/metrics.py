@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, mean_pinball_loss
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, precision_score, recall_score
 import numpy as np
 
 
@@ -26,9 +27,42 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.average(np.average(mape, axis=0), axis = 0)
 
 
+def to_labels(y):
+    return np.asarray(y).ravel().astype(int)
+
+
+def _average_for(y_true, y_pred):
+    # binary or multiclass output
+    n_classes = np.unique(np.concatenate([y_true, y_pred])).size
+    return "binary" if n_classes <= 2 else "macro"
+
+
+def accuracy(y_true, y_pred):
+    return accuracy_score(to_labels(y_true), to_labels(y_pred))
+
+
+def balanced_accuracy(y_true, y_pred):
+    return balanced_accuracy_score(to_labels(y_true), to_labels(y_pred))
+
+
+def f1(y_true, y_pred):
+    yt, yp = to_labels(y_true), to_labels(y_pred)
+    return f1_score(yt, yp, average=_average_for(yt, yp), zero_division=0)
+
+
+def precision(y_true, y_pred):
+    yt, yp = to_labels(y_true), to_labels(y_pred)
+    return precision_score(yt, yp, average=_average_for(yt, yp), zero_division=0)
+
+
+def recall(y_true, y_pred):
+    yt, yp = to_labels(y_true), to_labels(y_pred)
+    return recall_score(yt, yp, average=_average_for(yt, yp), zero_division=0)
+
+
 class Metrics:
-    def __init__(self, quantile: float = 0.5):
-        self._metrics_dict = {
+    def __init__(self, quantile: float = 0.5, task: str = 'regression'):
+        regression_metrics = {
             "MAPE": {
               "func": mean_absolute_percentage_error,
               "attributes": {},
@@ -60,7 +94,36 @@ class Metrics:
               "comp": (lambda x,y : x < y)  # lower is better
             }
         }
-    
+        classification_metrics = {
+            "Accuracy": {
+              "func": accuracy,
+              "attributes": {},
+              "comp": (lambda x,y : x > y)  # greater is better
+            },
+            "F1": {
+              "func": f1,
+              "attributes": {},
+              "comp": (lambda x,y : x > y)  # greater is better
+            },
+            "Precision": {
+              "func": precision,
+              "attributes": {},
+              "comp": (lambda x,y : x > y)  # greater is better
+            },
+            "Recall": {
+              "func": recall,
+              "attributes": {},
+              "comp": (lambda x,y : x > y)  # greater is better
+            },
+            "BalancedAccuracy": {
+              "func": balanced_accuracy,
+              "attributes": {},
+              "comp": (lambda x,y : x > y)  # greater is better
+            }
+        }
+        self.task = task
+        self._metrics_dict = classification_metrics if task == "classification" else regression_metrics
+
     def compute_metric(self, metric, real_y, predicted_y):
         if metric in self._metrics_dict:
             return self._metrics_dict[metric]["func"](real_y, predicted_y, **self._metrics_dict[metric]["attributes"])
